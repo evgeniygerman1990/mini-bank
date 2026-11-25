@@ -3,7 +3,6 @@ package german.dev;
 import german.dev.config.HibernateUtil;
 import german.dev.config.JdbcConnectionFactory;
 import german.dev.demo.HibernateDemo;
-import german.dev.domain.AccountStatus;
 import org.hibernate.SessionFactory;
 import german.dev.dao.hibernate.HibernateAccountRepository;
 import german.dev.dao.hibernate.HibernateTransferRepository;
@@ -57,7 +56,6 @@ public class Main {
 
                 HibernateTransactionManager hibernateTransactionManager =
                         new HibernateTransactionManager(sessionFactory);
-
 
 
                 TransferService hibernateTransferService = new DefaultTransferService(

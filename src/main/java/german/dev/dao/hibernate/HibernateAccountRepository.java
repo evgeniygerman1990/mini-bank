@@ -180,8 +180,20 @@ public class HibernateAccountRepository implements AccountRepository {
         if (account == null) {
             throw new AccountNotFoundException("Счёт не найден");
         }
-        if (account.getStatus() == AccountStatus.CLOSED && status != AccountStatus.CLOSED) {
+        // Read the locked row even when the entity was already cached in this session.
+        Object[] lockedState = session.createQuery(
+                        "select a.status, a.balance from Account a where a.id = :accountId", Object[].class)
+                .setParameter("accountId", accountId)
+                .getSingleResultOrNull();
+        if (lockedState == null) {
+            throw new AccountNotFoundException("Счёт не найден");
+        }
+        boolean alreadyClosed = lockedState[0] == AccountStatus.CLOSED;
+        if (alreadyClosed && status != AccountStatus.CLOSED) {
             throw new IllegalStateException("Закрытый счёт нельзя повторно открыть");
+        }
+        if (!alreadyClosed && status == AccountStatus.CLOSED && ((BigDecimal) lockedState[1]).signum() != 0) {
+            throw new IllegalStateException("Баланс должен быть равен 0");
         }
 
         String hql = """

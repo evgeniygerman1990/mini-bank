@@ -216,6 +216,7 @@ public class JdbcAccountRepository implements AccountRepository {
                     END
                 WHERE a.id = ?
                   AND (a.status <> 'CLOSED' OR ? = 'CLOSED')
+                  AND (? <> 'CLOSED' OR a.status = 'CLOSED' OR a.balance = 0)
                 """;
 
         try (JdbcConnectionScope scope = JdbcConnectionScope.open(connectionFactory);
@@ -224,17 +225,23 @@ public class JdbcAccountRepository implements AccountRepository {
             statement.setString(2, status.name());
             statement.setLong(3, accountId);
             statement.setString(4, status.name());
+            statement.setString(5, status.name());
             int updateRows = statement.executeUpdate();
             if (updateRows == 0) {
-                String statusSql = "SELECT status FROM accounts WHERE id = ?";
+                String statusSql = "SELECT status, balance FROM accounts WHERE id = ?";
                 try (PreparedStatement statusStatement = scope.getConnection().prepareStatement(statusSql)) {
                     statusStatement.setLong(1, accountId);
                     try (ResultSet resultSet = statusStatement.executeQuery()) {
                         if (!resultSet.next()) {
                             throw new AccountNotFoundException("Счёт не найден");
                         }
-                        if ("CLOSED".equals(resultSet.getString("status")) && status != AccountStatus.CLOSED) {
+                        boolean alreadyClosed = AccountStatus.CLOSED.name().equals(resultSet.getString("status"));
+                        if (alreadyClosed && status != AccountStatus.CLOSED) {
                             throw new IllegalStateException("Закрытый счёт нельзя повторно открыть");
+                        }
+                        if (!alreadyClosed && status == AccountStatus.CLOSED
+                                && resultSet.getBigDecimal("balance").signum() != 0) {
+                            throw new IllegalStateException("Баланс должен быть равен 0");
                         }
                     }
                 }
