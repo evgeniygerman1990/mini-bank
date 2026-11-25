@@ -16,6 +16,9 @@ public class HibernateTransactionManager implements TransactionManager {
 
     @Override
     public <T> T executeInTransaction(Supplier<T> action) {
+        if (HibernateSessionContext.getCurrentSession() != null) {
+            throw new IllegalStateException("Вложенные Hibernate-транзакции не поддерживаются");
+        }
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             HibernateSessionContext.setCurrentSession(session);
